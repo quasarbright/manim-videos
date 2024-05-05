@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Union
 import os
 from manim import *
@@ -12,22 +13,6 @@ if sys.platform == 'win32':
     monospace = 'consolas'
 elif sys.platform == 'darwin':
     monospace = 'monaco'
-
-def make_color_map(strings, color):
-    return {string: color for string in strings}
-
-def eval_colors(mob: MathTex, strings):
-    return mob.set_color(YELLOW).set_color_by_tex_to_color_map(make_color_map(strings, WHITE))
-
-def EvalTex(*texs: str | List[str]):
-    return eval_colors(
-        MathTex(*[
-            tex if isinstance(tex, str) else r'\mathtt{' + tex[0] + '}'
-            for tex in texs
-        ]),
-        [r'\mathtt{' + tex[0] + '}' for tex in texs if isinstance(tex, list)]
-    )
-
 
 class Title(Scene):
     def construct(self):
@@ -285,137 +270,212 @@ class Operations(Scene):
     # 3
     # also will avoid the weird stuff with the evals and parens not moving right
 
+def make_color_map(strings, color):
+    '''creates a color map mapping all tex strings to color'''
+    return {string: color for string in strings}
+
+def eval_colors(mob: MathTex, strings):
+    '''colors mob so it's yellow, except given strings are white'''
+    return mob.set_color(YELLOW).set_color_by_tex_to_color_map(make_color_map(strings, WHITE))
+
+def EvalTex(*texs: str | List[str]):
+    '''singleton lists are for source code and end up white and tt. rest is yellow.
+    '''
+    # TODO just color submobjects by index instead of doing a color map by substring
+    return eval_colors(
+        MathTex(*[
+            tex if isinstance(tex, str) else r'\mathtt{' + tex[0] + '}'
+            for tex in texs
+        ]),
+        [r'\mathtt{' + tex[0] + '}' for tex in texs if isinstance(tex, list)]
+    )
+
+spaces = 0
+def EvalOf(*texs: str):
+    '''wraps the texs in eval(...) and adds unique whitespaces to eval and parens.
+    singleton lists are for source code and end up white tt
+    '''
+    # TODO figure out something else instead of adding space characters, like \ignore{10}
+    global spaces
+    spaces += 1
+    return [' '*spaces+r'\mathrm{eval}', ' '*spaces+'(', *[[tex] for tex in texs], ' '*spaces+')']
+
+@dataclass
+class Step:
+    '''evaluation step'''
+    # displayed vertically, bottom is at the "top of the call stack"
+    formulas: List[MathTex]
+    # if this is False, instead of transforming, just remove the old and add this.
+    # useful when doing a re-structure that doesn't change content, to aid a later
+    # transformation
+    should_transform: bool = True
+
 class Testing(Scene):
     # the formula can also be False
-    def steps(self, formulass: List[List[MathTex]], wait_time=1, keep_last=False):
-        # list of tex strings that are currently on screen
-        stack = []
-        for formulas in formulass:
-            animations = []
-            for i, formula in enumerate(formulas):
-                # animations to be played at the same time
-                if i >= len(stack):
-                    # this is a new formula
-                    assert formula
-                    animations.append(Write(formula.to_edge(UP).shift(DOWN * i)))
-                    stack.append(formula)
-                elif formula and stack[i].tex_string != formula.tex_string:
-                    # this is a transformation of an existing formula
-                    animations.append(TransformMatchingTex(stack[i], formula.to_edge(UP).shift(DOWN * i)))
-                    stack[i] = formula
-            for i in range(len(formulas), len(stack)):
-                # formulas to remove
-                animations.append(Unwrite(stack[i]))
-            stack = stack[:len(formulas)]
-            self.play(*animations)
-            if wait_time > 0:
-                self.wait(wait_time)
-        if not keep_last:
-            if len(stack) > 0:
-                self.play(*[Unwrite(formula) for formula in stack])
+    def steps(self, steps: List[Step], wait_time=1, keep_last=False) -> VGroup:
+        '''reduction steps'''
+        mob = False
+        for step in steps:
+            mobs = [formula and formula.to_edge(UP).shift(DOWN * i) for i, formula in enumerate(step.formulas)]
+            for i, formula in enumerate(mobs):
+                if not formula:
+                    mobs[i] = mob.submobjects[i]
+            new_mob = VGroup(*mobs)
+            if mob:
+                if step.should_transform:
+                    self.play(TransformMatchingTex(mob, new_mob))
+                    if wait_time > 0:
+                        self.wait(wait_time)
+                else:
+                    self.remove(mob)
+                    self.add(new_mob)
+            else:
+                self.play(Write(new_mob))
                 if wait_time > 0:
                     self.wait(wait_time)
-        else:
-            return stack
+            mob = new_mob
+        if not keep_last and len(mob.submobjects) > 0:
+            self.play(Unwrite(mob))
+        return mob
 
     def construct(self):
-        [formula] = self.steps([
-            [
-                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3 + 10 / 2'], ' )'),
-            ],
-            [
-                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3'], r' )', '+', r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
-            ],
-            [
+        # TODO instead of EvalTex taking in a singleton list, take in a Source object which is a dataclass with 1 string field
+        # TODO EvalOf is data and instead of rewriting to re-space, call eval_2.copy()
+        # TODO EvalTex flattens EvalOf so you don't have to *
+        # TODO try to fix the weirdness of '2 * 3' to '2' '*' '3' by having it separated from the beginning
+        self.steps([
+            Step([
+                EvalTex(*EvalOf('2 * 3', '\ +\ ', '10 / 2')),
+            ]),
+            Step([
+                EvalTex(*(eval23 := EvalOf('2 * 3')), '+', *(eval_102 := EvalOf('10 / 2'))),
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3'], r' )'),
-            ],
-            [
+                EvalTex(*eval23),
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathrm{ eval}', ' (', ['2'], ' )', '*', r'\mathrm{  eval}', '  (', ['3'], r'  )'),
-            ],
-            [
+                EvalTex(*EvalOf(' 2 * 3')),
+            ], should_transform=False),
+            Step([
+                False,
+                EvalTex(*EvalOf('2', '\ *\ ', '3')),
+            ]),
+            Step([
+                False,
+                EvalTex(*(eval_2 := EvalOf('2')), '*', *(eval_3 := EvalOf('3')))
+            ]),
+            Step([
                 False,
                 False,
-                EvalTex(r'\mathrm{ eval}', ' (', ['2'], r' )'),
-            ],
-            [
+                EvalTex(*eval_2),
+            ]),
+            Step([
+                False,
+                False,
+                EvalTex(*EvalOf('2')),
+            ], should_transform=False),
+            Step([
                 False,
                 False,
                 EvalTex(r'\mathtt{2}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathtt{2}', '*', r'\mathrm{  eval}', '  (', ['3'], r'  )'),
-            ],
-            [
+                EvalTex(r'\mathtt{2}', '*', *eval_3),
+            ]),
+            Step([
                 False,
                 False,
-                EvalTex(r'\mathrm{ eval}', '  (', ['3'], r'  )'),
-            ],
-            [
+                EvalTex(*eval_3),
+            ]),
+            Step([
+                False,
+                False,
+                EvalTex(*EvalOf('3')),
+            ], should_transform=False),
+            Step([
                 False,
                 False,
                 EvalTex(r'\mathtt{3}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
                 EvalTex(r'\mathtt{2}', '*', r'\mathtt{3}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
                 EvalTex(r'\mathtt{6}'),
-            ],
-            [
-                EvalTex(r'\mathtt{6}', '+', r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
-            ],
-            [
+            ]),
+            Step([
+                EvalTex(r'\mathtt{6}', '+', *eval_102),
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
-            ],
-            [
+                EvalTex(*eval_102),
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathrm{  eval}', '  (', ['10'], r'  )', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
-            ],
-            [
+                EvalTex(*EvalOf('10 / 2')),
+            ], should_transform=False),
+            Step([
+                False,
+                EvalTex(*EvalOf('10', r'\ /\ ', '2')),
+            ], should_transform=False),
+            Step([
+                False,
+                EvalTex(*(eval_10 := EvalOf('10')), '/', *(eval_2 := EvalOf('2')))
+            ]),
+            Step([
                 False,
                 False,
-                EvalTex(r'\mathrm{  eval}', '  (', ['10'], r'  )'),
-            ],
-            [
+                EvalTex(*eval_10),
+            ]),
+            Step([
+                False,
+                False,
+                EvalTex(*EvalOf('10')),
+            ], should_transform=False),
+            Step([
                 False,
                 False,
                 EvalTex(r'\mathtt{10}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
-            ],
-            [
+                EvalTex(r'\mathtt{10}', '/', *eval_2),
+            ]),
+            Step([
                 False,
-                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '(   ', ['2'], '   )'),
-                EvalTex(r'\mathrm{   eval}', '   (', ['2'], '   )'),
-            ],
-            [
                 False,
-                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
+                EvalTex(*eval_2)
+            ]),
+            Step([
+                False,
+                False,
+                EvalTex(*EvalOf('2'))
+            ], should_transform=False),
+            Step([
+                False,
+                False,
                 EvalTex(r'\mathtt{2}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
                 EvalTex(r'\mathtt{10}', '/', r'\mathtt{2}'),
-            ],
-            [
+            ]),
+            Step([
                 False,
                 EvalTex(r'\mathtt{5}'),
-            ],
-            [
+            ]),
+            Step([
                 EvalTex(r'\mathtt{6}', '+', r'\mathtt{5}'),
-            ],
-            [
+            ]),
+            Step([
                 EvalTex(r'\mathtt{11}'),
-            ],
-            [
-                EvalTex(r'\mathrm{eval}', '(', ['2 * 3 + 10 / 2'], ')', '=', r'\mathtt{11}'),
-            ],
+            ]),
+            Step([
+                EvalTex(*EvalOf('2 * 3 + 10 / 2'), '=', r'\mathtt{11}'),
+            ]),
         ], wait_time=0, keep_last=True)
