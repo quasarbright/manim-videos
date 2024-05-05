@@ -1,3 +1,4 @@
+from typing import Union
 import os
 from manim import *
 import sys
@@ -11,6 +12,22 @@ if sys.platform == 'win32':
     monospace = 'consolas'
 elif sys.platform == 'darwin':
     monospace = 'monaco'
+
+def make_color_map(strings, color):
+    return {string: color for string in strings}
+
+def eval_colors(mob: MathTex, strings):
+    return mob.set_color(YELLOW).set_color_by_tex_to_color_map(make_color_map(strings, WHITE))
+
+def EvalTex(*texs: str | List[str]):
+    return eval_colors(
+        MathTex(*[
+            tex if isinstance(tex, str) else r'\mathtt{' + tex[0] + '}'
+            for tex in texs
+        ]),
+        [r'\mathtt{' + tex[0] + '}' for tex in texs if isinstance(tex, list)]
+    )
+
 
 class Title(Scene):
     def construct(self):
@@ -72,7 +89,7 @@ class Constants(Scene):
         diagram = VGroup(
             Tex('expressions'),
             VGroup(
-                MathTex('\mathrm{eval}'),
+                MathTex(r'\mathrm{eval}'),
                 Arrow(ORIGIN, RIGHT*3),
             ).arrange(DOWN),
             Tex('values')
@@ -203,7 +220,7 @@ class Operations(Scene):
             MathTex(r'\mathrm{eval}(', r'\mathtt{2 * 3}', ')', '+', r'\mathrm{eval}(', r'\mathtt{10 / 5}', ')').set_color(YELLOW).set_color_by_tex_to_color_map({
                 r'\mathtt{2 * 3}': WHITE, r'\mathtt{10 / 5}': WHITE
             }),
-            MathTex('(', r'\mathrm{eval}(', r'\mathtt{2}', r')', '*', '\mathrm{eval}(', r'\mathtt{3}', ')', ')', '+', r'\mathrm{eval}(', r'\mathtt{10 / 5}', ')').set_color(YELLOW).set_color_by_tex_to_color_map({
+            MathTex('(', r'\mathrm{eval}(', r'\mathtt{2}', r')', '*', r'\mathrm{eval}(', r'\mathtt{3}', ')', ')', '+', r'\mathrm{eval}(', r'\mathtt{10 / 5}', ')').set_color(YELLOW).set_color_by_tex_to_color_map({
                 r'\mathtt{2}': WHITE, r'\mathtt{3}': WHITE, r'\mathtt{10 / 5}': WHITE
             }),
             MathTex('(', r'\mathtt{2}', '*', r'\mathrm{eval}(', r'\mathtt{3}', ')', ')', '+', r'\mathrm{eval}(', r'\mathtt{10 / 5}', ')').set_color(YELLOW).set_color_by_tex_to_color_map({
@@ -268,7 +285,137 @@ class Operations(Scene):
     # 3
     # also will avoid the weird stuff with the evals and parens not moving right
 
-
 class Testing(Scene):
+    # the formula can also be False
+    def steps(self, formulass: List[List[MathTex]], wait_time=1, keep_last=False):
+        # list of tex strings that are currently on screen
+        stack = []
+        for formulas in formulass:
+            animations = []
+            for i, formula in enumerate(formulas):
+                # animations to be played at the same time
+                if i >= len(stack):
+                    # this is a new formula
+                    assert formula
+                    animations.append(Write(formula.to_edge(UP).shift(DOWN * i)))
+                    stack.append(formula)
+                elif formula and stack[i].tex_string != formula.tex_string:
+                    # this is a transformation of an existing formula
+                    animations.append(TransformMatchingTex(stack[i], formula.to_edge(UP).shift(DOWN * i)))
+                    stack[i] = formula
+            for i in range(len(formulas), len(stack)):
+                # formulas to remove
+                animations.append(Unwrite(stack[i]))
+            stack = stack[:len(formulas)]
+            self.play(*animations)
+            if wait_time > 0:
+                self.wait(wait_time)
+        if not keep_last:
+            if len(stack) > 0:
+                self.play(*[Unwrite(formula) for formula in stack])
+                if wait_time > 0:
+                    self.wait(wait_time)
+        else:
+            return stack
+
     def construct(self):
-        self.add(Tex(r'eval(\texttt{foo + bar})'))
+        [formula] = self.steps([
+            [
+                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3 + 10 / 2'], ' )'),
+            ],
+            [
+                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3'], r' )', '+', r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathrm{ eval}', ' (', ['2 * 3'], r' )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathrm{ eval}', ' (', ['2'], ' )', '*', r'\mathrm{  eval}', '  (', ['3'], r'  )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathrm{ eval}', ' (', ['2'], r' )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathtt{2}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{2}', '*', r'\mathrm{  eval}', '  (', ['3'], r'  )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathrm{ eval}', '  (', ['3'], r'  )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathtt{3}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{2}', '*', r'\mathtt{3}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{6}'),
+            ],
+            [
+                EvalTex(r'\mathtt{6}', '+', r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathrm{  eval}', '  (', ['10 / 2'], '  )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathrm{  eval}', '  (', ['10'], r'  )', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathrm{  eval}', '  (', ['10'], r'  )'),
+            ],
+            [
+                False,
+                False,
+                EvalTex(r'\mathtt{10}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '(   ', ['2'], '   )'),
+                EvalTex(r'\mathrm{   eval}', '   (', ['2'], '   )'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{10}', '/', r'\mathrm{   eval}', '   (', ['2'], '   )'),
+                EvalTex(r'\mathtt{2}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{10}', '/', r'\mathtt{2}'),
+            ],
+            [
+                False,
+                EvalTex(r'\mathtt{5}'),
+            ],
+            [
+                EvalTex(r'\mathtt{6}', '+', r'\mathtt{5}'),
+            ],
+            [
+                EvalTex(r'\mathtt{11}'),
+            ],
+            [
+                EvalTex(r'\mathrm{eval}', '(', ['2 * 3 + 10 / 2'], ')', '=', r'\mathtt{11}'),
+            ],
+        ], wait_time=0, keep_last=True)
