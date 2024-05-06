@@ -278,27 +278,49 @@ def eval_colors(mob: MathTex, strings):
     '''colors mob so it's yellow, except given strings are white'''
     return mob.set_color(YELLOW).set_color_by_tex_to_color_map(make_color_map(strings, WHITE))
 
-def EvalTex(*texs: str | List[str]):
-    '''singleton lists are for source code and end up white and tt. rest is yellow.
+spaces = 0
+@dataclass
+class EvalOf:
+    '''wraps the source_strs in an eval(...) and adds unique whitespaces to eval and parens.
+    '''
+    # makes the eval and parentheses unique
+    spaces: int
+    # source code strings, will become white and wrapped with yellow eval(...)
+    source_strs: List[str]
+    # tex strings to make white, wrapped with \mathtt{...}
+    tts: List[str]
+    # all tex strings to be rendered
+    texs: List[str]
+    def __init__(self, *source_strs: str, spaces_: int = False):
+        global spaces
+        self.source_strs = source_strs
+        self.spaces = spaces_ or (spaces := spaces + 1)
+        self.tts = [r'\mathtt{' + tt + '}' for tt in source_strs]
+        self.texs = [' '*spaces+r'\mathrm{eval}', ' '*spaces+'(', *[tt for tt in self.tts], ' '*spaces+')']
+    
+    def unique_copy(self):
+        '''copy the tex, but make the number of spaces unique'''
+        global spaces
+        return EvalOf(*self.source_strs, spaces_=(spaces := spaces + 1))
+
+def EvalTex(*texs: str | EvalOf):
+    '''handles coloring
+    Ex: EvalTex(EvalOf('2'), '+', EvalOf('3'))
     '''
     # TODO just color submobjects by index instead of doing a color map by substring
+    texs_ = []
+    tts = []
+    for tex in texs:
+        if isinstance(tex, EvalOf):
+            eval_of = tex
+            texs_.extend(eval_of.texs)
+            tts.extend(eval_of.tts)
+        else:
+            texs_.append(tex)
     return eval_colors(
-        MathTex(*[
-            tex if isinstance(tex, str) else r'\mathtt{' + tex[0] + '}'
-            for tex in texs
-        ]),
-        [r'\mathtt{' + tex[0] + '}' for tex in texs if isinstance(tex, list)]
+        MathTex(*texs_),
+        tts,
     )
-
-spaces = 0
-def EvalOf(*texs: str):
-    '''wraps the texs in eval(...) and adds unique whitespaces to eval and parens.
-    singleton lists are for source code and end up white tt
-    '''
-    # TODO figure out something else instead of adding space characters, like \ignore{10}
-    global spaces
-    spaces += 1
-    return [' '*spaces+r'\mathrm{eval}', ' '*spaces+'(', *[[tex] for tex in texs], ' '*spaces+')']
 
 @dataclass
 class Step:
@@ -343,38 +365,40 @@ class Testing(Scene):
         # TODO EvalOf is data and instead of rewriting to re-space, call eval_2.copy()
         # TODO EvalTex flattens EvalOf so you don't have to *
         # TODO try to fix the weirdness of '2 * 3' to '2' '*' '3' by having it separated from the beginning
+        # You should probably just have These things subclass MathTex or VGroup
         self.steps([
             Step([
-                EvalTex(*EvalOf('2 * 3', '\ +\ ', '10 / 2')),
+                EvalTex(EvalOf('2 * 3', '\ +\ ', '10 / 2')),
             ]),
             Step([
-                EvalTex(*(eval23 := EvalOf('2 * 3')), '+', *(eval_102 := EvalOf('10 / 2'))),
-            ]),
-            Step([
-                False,
-                EvalTex(*eval23),
+                EvalTex(eval23 := EvalOf('2 * 3'), '+', eval_102 := EvalOf('10 / 2')),
             ]),
             Step([
                 False,
-                EvalTex(*EvalOf(' 2 * 3')),
+                EvalTex(eval23),
+            ]),
+            Step([
+                False,
+                # not sure why, but unique_copy doesn't work here
+                EvalTex(EvalOf(' 2 * 3')),
             ], should_transform=False),
             Step([
                 False,
-                EvalTex(*EvalOf('2', '\ *\ ', '3')),
+                EvalTex(EvalOf('2', '\ *\ ', '3')),
             ]),
             Step([
                 False,
-                EvalTex(*(eval_2 := EvalOf('2')), '*', *(eval_3 := EvalOf('3')))
-            ]),
-            Step([
-                False,
-                False,
-                EvalTex(*eval_2),
+                EvalTex((eval_2 := EvalOf('2')), '*', (eval_3 := EvalOf('3')))
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*EvalOf('2')),
+                EvalTex(eval_2),
+            ]),
+            Step([
+                False,
+                False,
+                EvalTex(eval_2.unique_copy()),
             ], should_transform=False),
             Step([
                 False,
@@ -383,17 +407,17 @@ class Testing(Scene):
             ]),
             Step([
                 False,
-                EvalTex(r'\mathtt{2}', '*', *eval_3),
+                EvalTex(r'\mathtt{2}', '*', eval_3),
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*eval_3),
+                EvalTex(eval_3),
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*EvalOf('3')),
+                EvalTex(eval_3.unique_copy()),
             ], should_transform=False),
             Step([
                 False,
@@ -409,33 +433,33 @@ class Testing(Scene):
                 EvalTex(r'\mathtt{6}'),
             ]),
             Step([
-                EvalTex(r'\mathtt{6}', '+', *eval_102),
+                EvalTex(r'\mathtt{6}', '+', eval_102),
             ]),
             Step([
                 False,
-                EvalTex(*eval_102),
+                EvalTex(eval_102),
             ]),
             Step([
                 False,
-                EvalTex(*EvalOf('10 / 2')),
+                EvalTex(eval_102.unique_copy()),
             ], should_transform=False),
             Step([
                 False,
-                EvalTex(*EvalOf('10', r'\ /\ ', '2')),
+                EvalTex(EvalOf('10', r'\ /\ ', '2')),
             ], should_transform=False),
             Step([
                 False,
-                EvalTex(*(eval_10 := EvalOf('10')), '/', *(eval_2 := EvalOf('2')))
+                EvalTex((eval_10 := EvalOf('10')), '/', (eval_2 := EvalOf('2')))
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*eval_10),
+                EvalTex(eval_10),
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*EvalOf('10')),
+                EvalTex(eval_10.unique_copy()),
             ], should_transform=False),
             Step([
                 False,
@@ -444,17 +468,17 @@ class Testing(Scene):
             ]),
             Step([
                 False,
-                EvalTex(r'\mathtt{10}', '/', *eval_2),
+                EvalTex(r'\mathtt{10}', '/', eval_2),
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*eval_2)
+                EvalTex(eval_2)
             ]),
             Step([
                 False,
                 False,
-                EvalTex(*EvalOf('2'))
+                EvalTex(eval_2.unique_copy())
             ], should_transform=False),
             Step([
                 False,
@@ -476,6 +500,6 @@ class Testing(Scene):
                 EvalTex(r'\mathtt{11}'),
             ]),
             Step([
-                EvalTex(*EvalOf('2 * 3 + 10 / 2'), '=', r'\mathtt{11}'),
+                EvalTex(EvalOf('2 * 3 + 10 / 2'), '=', r'\mathtt{11}'),
             ]),
         ], wait_time=0, keep_last=True)
