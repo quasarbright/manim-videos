@@ -77,8 +77,7 @@ callRule = MathTex(
 )
 letFunRule = MathTex(
     r"\frac{\Gamma,f:\tau_x \rightarrow \tau_1,x:\tau_x \vdash e_1 : \tau_1 \qquad \Gamma,f:\tau_x \rightarrow \tau_1 \vdash e_2 : \tau_2}{\Gamma \vdash \text{letfun}~f (x : \tau_x) \rightarrow e_1~\text{in}~e_2 : \tau_2}(\text{LETFUN})"
-)
-letFunRule.scale(0.8)
+).scale(0.8)
 
 
 letCheckExample = MathTex(
@@ -415,5 +414,29 @@ class Rules(Scene):
         self.play(Unwrite(call_rule))
         self.wait()
 
-        ### left off about to do letfun
+        def Emphasize(mob):
+            # return Indicate(let_fun_rule[0][a:b], scale_factor=1.05, run_time=1)
+            return Circumscribe(mob, time_width=8, run_time=3)
+
+        let_fun_rule = MathTex(
+            r"\frac{\Gamma,f:\tau_x \rightarrow \tau_{\text{ret}},x:\tau_x \vdash e_1 : \tau_{\text{ret}} \qquad \Gamma,f:\tau_x \rightarrow \tau_{\text{ret}} \vdash e_2 : \tau_2}{\Gamma \vdash \text{letfun}~f (x : \tau_x) : \tau_{\text{ret}} \rightarrow e_1~\text{in}~e_2 : \tau_2}(\text{LETFUN})"
+        ).scale(0.8)
+        labels = index_labels(let_fun_rule[0]).shift(DOWN*0.2)
+        self.play(Write(let_fun_rule))
+        self.wait()
+        self.play(*[Emphasize(let_fun_rule[0][a:b]) for a,b in [[17,24],[25,41],[65,72]]])
+        self.wait()
+        self.play(*[Emphasize(let_fun_rule[0][a:b]) for a,b in [[51,57],[62,65],[11,24]]])
+        self.wait()
+        self.play(*[Emphasize(let_fun_rule[0][a:b]) for a,b in [[2,11],[17,19],[50,51],[63,65]]])
+        self.wait()
+        self.play(*[Emphasize(let_fun_rule[0][a:b]) for a,b in [[57,62]]])
+        self.wait()
+        arrow = Arrow(start=let_fun_rule[0][58], end=let_fun_rule[0][10], buff=0.1, color=YELLOW)
+        self.play(GrowArrow(arrow))
+        self.wait()
+        self.play(FadeOut(arrow))
+        self.add(labels)
+        self.play(Unwrite(let_fun_rule))
+        self.wait()
 
