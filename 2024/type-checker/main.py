@@ -1,6 +1,7 @@
 import os
 import sys
 from manim import *
+from MF_Tools import *
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 def local_path(path: str) -> str:
@@ -194,7 +195,7 @@ class Rules(Scene):
         self.wait()
         self.play(Unwrite(infer), Unwrite(check))
 
-        java_example = Code(code="int x = 1; return x + x", language="java")
+        java_example = Code(code_string="int x = 1; return x + x", language="java")
         let_example = MathTex(r"\text{let}~x = 1~\text{in}~x + x").next_to(java_example, direction=DOWN*2)
         VGroup(java_example, let_example).center()
 
@@ -204,23 +205,23 @@ class Rules(Scene):
         self.wait()
         self.play(FadeOut(java_example), Unwrite(let_example))
 
-        numRule = MathTex(
+        num_rule = MathTex(
             r"\frac{}{ \Gamma \vdash n : \text{Number}}(\text{NUM})",
         )
 
-        self.play(Write(numRule))
+        self.play(Write(num_rule))
         self.wait()
-        self.play(Circumscribe(numRule[0][1]))
+        self.play(Circumscribe(num_rule[0][1]))
         self.wait()
-        self.play(Circumscribe(numRule[0][3]))
+        self.play(Circumscribe(num_rule[0][3]))
         self.wait()
-        self.play(Circumscribe(numRule[0][5:11]))
+        self.play(Circumscribe(num_rule[0][5:11]))
         self.wait()
-        self.play(Circumscribe(numRule[0][12:15]))
+        self.play(Circumscribe(num_rule[0][12:15]))
         self.wait()
-        labels = index_labels(numRule[0])
+        labels = index_labels(num_rule[0])
         # self.add(labels)
-        self.play(Unwrite(numRule))
+        self.play(Unwrite(num_rule))
         # self.remove(labels)
         self.wait()
         
@@ -276,7 +277,7 @@ class Rules(Scene):
             \cfrac{\displaystyle
             \cdot \vdash 1 : \text{?} \qquad \displaystyle x:\text{?} \vdash x : \text{?}
             }{\displaystyle
-            {{\cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?}}} }(\text{LET})
+            \cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?} }(\text{LET})
             """),
             MathTex(r"""
             \cfrac{\displaystyle
@@ -284,7 +285,7 @@ class Rules(Scene):
             \qquad
             \displaystyle x:\text{?} \vdash x : \text{?}
             }{\displaystyle
-            {{\cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?}}} }(\text{LET})
+            \cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?} }(\text{LET})
             """),
             MathTex(r"""
             \cfrac{\displaystyle
@@ -292,7 +293,7 @@ class Rules(Scene):
             \qquad
             \displaystyle x:\text{Number} \vdash x : \text{?}
             }{\displaystyle
-            {{\cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?}}} }(\text{LET})
+            \cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?} }(\text{LET})
             """),
             MathTex(
             r"""
@@ -301,7 +302,7 @@ class Rules(Scene):
             \qquad
             \cfrac{}{\displaystyle x:\text{Number} \vdash x : \text{Number}}(\text{VAR})
             }{\displaystyle
-            {{\cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?}}} }
+            \cdot \vdash \text{let}~x = 1~\text{in}~x : \text{?} }
             }(\text{LET})
             """).scale(0.8),
             MathTex(
@@ -311,37 +312,49 @@ class Rules(Scene):
             \qquad
             \cfrac{}{\displaystyle x:\text{Number} \vdash x : \text{Number}}(\text{VAR})
             }{\displaystyle
-            \cdot \vdash \text{let}~x = 1~\text{in}~x : {{\text{?}}} }
-            }(\text{LET})
-            """).scale(0.8),
-            MathTex(
-            r"""
-            \cfrac{\displaystyle
-            \cfrac{}{\displaystyle \cdot \vdash 1 : \text{Number}}(\text{NUM})
-            \qquad
-            \cfrac{}{\displaystyle x:\text{Number} \vdash x : \text{Number}}(\text{VAR})
-            }{\displaystyle
-            \cdot \vdash \text{let}~x = 1~\text{in}~x : {{\text{Number}}} }
+            \cdot \vdash \text{let}~x = 1~\text{in}~x : \text{Number} }
             }(\text{LET})
             """).scale(0.8),
         ]
         self.play(Write(mobs[0]))
         self.wait()
-        self.play(TransformMatchingTex(mobs[0], mobs[1]))
+        self.play(TransformByGlyphMap(mobs[0], mobs[1], 
+          ([*ir(0,12)],[*ir(13,25)]), # denom
+          ([],[12]), # line
+          ([],[*ir(26,30)]), # rule name
+          ([5], [*ir(5,7)]), # x (lhs) goes to annot
+          ([7],[*ir(0,4)]), # 1 (rhs) goes to left
+          ([10], [*ir(8,11)]) # x (body) goes to right
+        ))
         self.wait()
-        self.play(ReplacementTransform(mobs[1], mobs[2]))
+        self.play(TransformByGlyphMap(mobs[1], mobs[2], 
+          ([4],ir(5,10)), # ? -> Number
+          ([],[0]), # line
+          ([],ir(11,15)) # NUM
+        ))
         self.wait()
-        self.play(ReplacementTransform(mobs[2], mobs[3]))
+        self.play(TransformByGlyphMap(mobs[2], mobs[3], 
+          (ir(5,10),ir(18,23)), # Number +-> Number
+          (ir(5,10),ir(5,10)), # Number stay
+          ([18],[]), # ?
+        ))
         self.wait()
-        self.play(TransformMatchingTex(mobs[3], mobs[4])) # TODO clean this up, it just fades
+        self.play(TransformByGlyphMap(mobs[3], mobs[4],
+          ([],[16]), # line
+          ([],ir(34,38)), # rule name
+          ([27], []), # ?
+          (ir(18,23),ir(19,24)), # Number stay
+          (ir(18,23),ir(28,33)), # Number copy
+        ))
         self.wait()
-        self.remove(mobs[4])
-        self.add(mobs[5])
-        self.play(TransformMatchingTex(mobs[5], mobs[6]))
+        self.play(TransformByGlyphMap(mobs[4], mobs[5],
+          (ir(28,33),ir(28,33)), # Number stay
+          (ir(28,33),ir(52,57)), # Number copy
+          ([52],[]), # ?
+        ))
         self.wait()
-        self.play(Unwrite(mobs[6]))
+        self.play(Unwrite(mobs[5]))
         self.wait()
-
 
         plus_rule = MathTex(
             r"\frac{\Gamma \vdash e_1 : \text{Number} \qquad \Gamma \vdash e_2 : \text{Number}}{\Gamma \vdash e_1 + e_2 : \text{Number}}(\text{PLUS})"
@@ -436,7 +449,246 @@ class Rules(Scene):
         self.play(GrowArrow(arrow))
         self.wait()
         self.play(FadeOut(arrow))
-        self.add(labels)
         self.play(Unwrite(let_fun_rule))
         self.wait()
 
+class Algorithm(Scene):
+    def construct(self):
+        check_vs_inference = VGroup(Text("Checking"), Text("vs."), Text("Inference")).arrange(direction=DOWN).center().scale(1.5)
+        self.play(Write(check_vs_inference))
+        self.wait()
+        self.play(Unwrite(check_vs_inference))
+
+        check = MathTex(r"\text{check} : (\text{Context}, \text{Expression}, \text{Type}) \to \text{Void}")
+        infer = MathTex(r"\text{infer} : (\text{Context}, \text{Expression}) \to \text{Type}")
+        VGroup(check, infer).arrange(DOWN, buff=2).center()
+        self.play(Write(check))
+        self.wait()
+        self.play(Write(infer))
+        self.wait()
+        self.play(Unwrite(check), Unwrite(infer))
+        self.wait()
+
+        num_rule = MathTex(
+            r"\frac{}{ \Gamma \vdash n {{:}} \text{Number}}(\text{NUM})",
+        )
+        true_rule = MathTex(
+            r"\frac{}{\Gamma \vdash \text{true} {{:}} \text{Boolean}}(\text{TRUE})"
+        )
+        false_rule = MathTex(
+            r"\frac{}{\Gamma \vdash \text{false} {{:}} \text{Boolean}}(\text{FALSE})"
+        )
+        group = VGroup(num_rule, true_rule, false_rule).arrange(DOWN, buff=2).center()
+        self.play(Write(group))
+        self.wait()
+
+        num_rule_infer = MathTex(
+            r"\frac{}{ \Gamma \vdash n {{\Rightarrow}} \text{Number}}(\text{NUM})",
+        ).set_color_by_tex(r"\Rightarrow", RED)
+        true_rule_infer = MathTex(
+            r"\frac{}{\Gamma \vdash \text{true} {{\Rightarrow}} \text{Boolean}}(\text{TRUE})"
+        ).set_color_by_tex(r"\Rightarrow", RED)
+        false_rule_infer = MathTex(
+            r"\frac{}{\Gamma \vdash \text{false} {{\Rightarrow}} \text{Boolean}}(\text{FALSE})"
+        ).set_color_by_tex(r"\Rightarrow", RED)
+        group_infer = VGroup(num_rule_infer, true_rule_infer, false_rule_infer).arrange(DOWN, buff=2).center()
+        self.play(TransformMatchingTex(group, group_infer))
+        self.wait()
+        self.play(Unwrite(group_infer))
+
+        let_rule = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Rightarrow \tau_1 \qquad \Gamma,x:\tau_1 \vdash e_2 \Rightarrow \tau_2}{\Gamma \vdash \text{let}~x = e_1~\text{in}~e_2 \Rightarrow \tau_2}(\text{LET})"
+        )
+        labels = index_labels(let_rule[0])
+        for idx in [4,16,33]:
+            let_rule[0][idx].set_color(RED)
+        self.play(Write(let_rule))
+        self.wait()
+        # self.add(labels)
+        self.play(Unwrite(let_rule))
+
+        var_rule = MathTex(
+            r"\frac{\Gamma [x] = \tau}{\Gamma \vdash x \Rightarrow \tau}(\text{VAR})"
+        )
+        var_rule[0][10].set_color(RED)
+        self.play(Write(var_rule))
+        self.wait()
+        self.play(Unwrite(var_rule))
+        self.wait()
+
+        plus_rule = MathTex(
+            r"\frac{\Gamma \vdash e_1 : \text{Number} \qquad \Gamma \vdash e_2 : \text{Number}}{\Gamma \vdash e_1 + e_2 : \text{Number}}(\text{PLUS})"
+        )
+        or_rule = MathTex(
+            r"\frac{\Gamma \vdash e_1 : \text{Boolean} \qquad \Gamma \vdash e_2 : \text{Boolean}}{\Gamma \vdash e_1 \mid\mid e_2 : \text{Boolean}}(\text{OR})"
+        )
+        group = VGroup(plus_rule, or_rule).arrange(direction=DOWN, buff=2).center()
+        self.play(Write(group))
+        self.wait()
+        plus_rule2 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Number} \qquad \Gamma \vdash e_2 \Leftarrow \text{Number}}{\Gamma \vdash e_1 + e_2 : \text{Number}}(\text{PLUS})"
+        )
+        plus_rule2[0][4].set_color(BLUE)
+        plus_rule2[0][15].set_color(BLUE)
+        or_rule2 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 \Leftarrow \text{Boolean}}{\Gamma \vdash e_1 \mid\mid e_2 : \text{Boolean}}(\text{OR})"
+        )
+        or_rule2[0][4].set_color(BLUE)
+        or_rule2[0][16].set_color(BLUE)
+        group2 = VGroup(plus_rule2, or_rule2).arrange(direction=DOWN, buff=2).center()
+        self.play(TransformByGlyphMap(plus_rule, plus_rule2, ([0],[0])),TransformByGlyphMap(or_rule,or_rule2, ([0],[0])))
+        self.wait()
+        plus_rule3 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Number} \qquad \Gamma \vdash e_2 \Leftarrow \text{Number}}{\Gamma \vdash e_1 + e_2 \Rightarrow \text{Number}}(\text{PLUS})"
+        )
+        plus_rule3[0][4].set_color(BLUE)
+        plus_rule3[0][15].set_color(BLUE)
+        plus_rule3[0][30].set_color(RED)
+        or_rule3 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 \Leftarrow \text{Boolean}}{\Gamma \vdash e_1 \mid\mid e_2 \Rightarrow \text{Boolean}}(\text{OR})"
+        )
+        or_rule3[0][4].set_color(BLUE)
+        or_rule3[0][16].set_color(BLUE)
+        or_rule3[0][33].set_color(RED)
+        group3 = VGroup(plus_rule3, or_rule3).arrange(direction=DOWN, buff=2).center()
+        self.play(TransformByGlyphMap(plus_rule2, plus_rule3, ([0],[0])),TransformByGlyphMap(or_rule2,or_rule3, ([0],[0])))
+        self.wait()
+        self.play(Unwrite(group3))
+        self.wait()
+
+        equal_rule1 = MathTex(
+            r"\frac{\Gamma \vdash e_1 : \tau \qquad \Gamma \vdash e_2 : \tau}{\Gamma \vdash e_1 == e_2 : \text{Boolean}}(\text{EQ})"
+        )
+        equal_rule2 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Rightarrow \tau \qquad \Gamma \vdash e_2 : \tau}{\Gamma \vdash e_1 == e_2 : \text{Boolean}}(\text{EQ})"
+        )
+        equal_rule2[0][4].set_color(RED)
+        equal_rule3 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Rightarrow \tau \qquad \Gamma \vdash e_2 \Leftarrow \tau}{\Gamma \vdash e_1 == e_2 : \text{Boolean}}(\text{EQ})"
+        )
+        equal_rule3[0][4].set_color(RED)
+        equal_rule3[0][10].set_color(BLUE)
+        equal_rule4 = MathTex(
+            r"\frac{\Gamma \vdash e_1 \Rightarrow \tau \qquad \Gamma \vdash e_2 \Leftarrow \tau}{\Gamma \vdash e_1 == e_2 \Rightarrow \text{Boolean}}(\text{EQ})"
+        )
+        equal_rule4[0][4].set_color(RED)
+        equal_rule4[0][10].set_color(BLUE)
+        equal_rule4[0][21].set_color(RED)
+        self.play(Write(equal_rule1))
+        self.wait()
+        self.play(TransformByGlyphMap(equal_rule1,equal_rule2, ([],[])))
+        self.wait()
+        self.play(TransformByGlyphMap(equal_rule2,equal_rule3, ([],[])))
+        self.wait()
+        self.play(TransformByGlyphMap(equal_rule3,equal_rule4, ([],[])))
+        self.wait()
+        self.play(Unwrite(equal_rule4))
+        self.wait()
+
+        if_rules = [
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 : \text{Boolean} \qquad \Gamma \vdash e_2 : \tau \qquad \Gamma \vdash e_3 : \tau}{\Gamma \vdash \text{if}~e_1~\text{then}~e_2~\text{else}~e_3 : \tau}(\text{IF})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 : \tau \qquad \Gamma \vdash e_3 : \tau}{\Gamma \vdash \text{if}~e_1~\text{then}~e_2~\text{else}~e_3 : \tau}(\text{IF})",
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 \Rightarrow \tau \qquad \Gamma \vdash e_3 : \tau}{\Gamma \vdash \text{if}~e_1~\text{then}~e_2~\text{else}~e_3 : \tau}(\text{IF})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 \Rightarrow \tau \qquad \Gamma \vdash e_3 \Leftarrow \tau}{\Gamma \vdash \text{if}~e_1~\text{then}~e_2~\text{else}~e_3 : \tau}(\text{IF})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Leftarrow \text{Boolean} \qquad \Gamma \vdash e_2 \Rightarrow \tau \qquad \Gamma \vdash e_3 \Leftarrow \tau}{\Gamma \vdash \text{if}~e_1~\text{then}~e_2~\text{else}~e_3 \Rightarrow \tau}(\text{IF})"
+            ),
+        ]
+        if_rules[1][0][4].set_color(BLUE)
+        if_rules[2][0][4].set_color(BLUE)
+        if_rules[2][0][16].set_color(RED)
+        if_rules[3][0][4].set_color(BLUE)
+        if_rules[3][0][16].set_color(RED)
+        if_rules[3][0][22].set_color(BLUE)
+        if_rules[4][0][4].set_color(BLUE)
+        if_rules[4][0][16].set_color(RED)
+        if_rules[4][0][22].set_color(BLUE)
+        if_rules[4][0][43].set_color(RED)
+        self.play(Write(if_rules[0]))
+        self.wait()
+        for a,b in zip(if_rules,if_rules[1::]):
+            self.play(TransformByGlyphMap(a,b,([],[])))
+            self.wait()
+        self.play(Unwrite(if_rules[-1]))
+        self.wait()
+        
+        fun_rule = MathTex(
+            r"\frac{\Gamma,x:\tau_x \vdash e \Rightarrow \tau_e}{\Gamma \vdash \text{fun}~(x : \tau_x) \rightarrow e \Rightarrow \tau_x \rightarrow \tau_e}(\text{FUN})"
+        )
+        fun_rule[0][8].set_color(RED)
+        fun_rule[0][25].set_color(RED)
+        self.play(Write(fun_rule))
+        self.wait()
+        self.play(Unwrite(fun_rule))
+        self.wait()
+
+        call_rules = [
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 : \tau_{\text{arg}} \rightarrow \tau_{\text{ret}} \qquad \Gamma \vdash e_2 : \tau_{\text{arg}}}{\Gamma \vdash e_1(e_2) : \tau_{\text{ret}}}(\text{CALL})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Rightarrow \tau_{\text{arg}} \rightarrow \tau_{\text{ret}} \qquad \Gamma \vdash e_2 : \tau_{\text{arg}}}{\Gamma \vdash e_1(e_2) : \tau_{\text{ret}}}(\text{CALL})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Rightarrow \tau_{\text{arg}} \rightarrow \tau_{\text{ret}} \qquad \Gamma \vdash e_2 \Leftarrow \tau_{\text{arg}}}{\Gamma \vdash e_1(e_2) : \tau_{\text{ret}}}(\text{CALL})"
+            ),
+            MathTex(
+                r"\frac{\Gamma \vdash e_1 \Rightarrow \tau_{\text{arg}} \rightarrow \tau_{\text{ret}} \qquad \Gamma \vdash e_2 \Leftarrow \tau_{\text{arg}}}{\Gamma \vdash e_1(e_2) \Rightarrow \tau_{\text{ret}}}(\text{CALL})"
+            ),
+        ]
+        call_rules[1][0][4].set_color(RED)
+        call_rules[2][0][4].set_color(RED)
+        call_rules[2][0][18].set_color(BLUE)
+        call_rules[3][0][4].set_color(RED)
+        call_rules[3][0][18].set_color(BLUE)
+        call_rules[3][0][32].set_color(RED)
+        self.play(Write(call_rules[0]))
+        self.wait()
+        for a,b in zip(call_rules,call_rules[1::]):
+            self.play(TransformByGlyphMap(a,b,([],[])))
+            self.wait()
+        self.play(Unwrite(call_rules[-1]))
+        self.wait()
+
+        let_fun_rules = [
+            MathTex(
+                r"\frac{\Gamma,f:\tau_x \rightarrow \tau_{\text{ret}},x:\tau_x \vdash e_1 : \tau_{\text{ret}} \qquad \Gamma,f:\tau_x \rightarrow \tau_{\text{ret}} \vdash e_2 : \tau_2}{\Gamma \vdash \text{letfun}~f (x : \tau_x) : \tau_{\text{ret}} \rightarrow e_1~\text{in}~e_2 : \tau_2}(\text{LETFUN})"
+            ).scale(0.8),
+            MathTex(
+                r"\frac{\Gamma,f:\tau_x \rightarrow \tau_{\text{ret}},x:\tau_x \vdash e_1 \Leftarrow \tau_{\text{ret}} \qquad \Gamma,f:\tau_x \rightarrow \tau_{\text{ret}} \vdash e_2 : \tau_2}{\Gamma \vdash \text{letfun}~f (x : \tau_x) : \tau_{\text{ret}} \rightarrow e_1~\text{in}~e_2 : \tau_2}(\text{LETFUN})"
+            ).scale(0.8),
+            MathTex(
+                r"\frac{\Gamma,f:\tau_x \rightarrow \tau_{\text{ret}},x:\tau_x \vdash e_1 \Leftarrow \tau_{\text{ret}} \qquad \Gamma,f:\tau_x \rightarrow \tau_{\text{ret}} \vdash e_2 \Rightarrow \tau_2}{\Gamma \vdash \text{letfun}~f (x : \tau_x) : \tau_{\text{ret}} \rightarrow e_1~\text{in}~e_2 \Rightarrow \tau_2}(\text{LETFUN})"
+            ).scale(0.8),
+        ]
+        let_fun_rules[1][0][19].set_color(BLUE)
+        let_fun_rules[2][0][19].set_color(BLUE)
+        let_fun_rules[2][0][38].set_color(RED)
+        let_fun_rules[2][0][69].set_color(RED)
+        self.play(Write(let_fun_rules[0]))
+        self.wait()
+        for a,b in zip(let_fun_rules,let_fun_rules[1::]):
+            self.play(TransformByGlyphMap(a,b,([],[])))
+            self.wait()
+        self.play(Unwrite(let_fun_rules[-1]))
+        self.wait()
+
+        check_rule = MathTex(r"\frac{\Gamma \vdash e \Rightarrow \tau_{\text{actual}}}{\Gamma \vdash e \Leftarrow \tau_{\text{expected}}}(\text{CHECK})")
+        check_rule[0][3].set_color(RED)
+        check_rule[0][15].set_color(BLUE)
+        self.play(Write(check_rule))
+        self.wait()
+        self.play(Unwrite(check_rule))
+        self.wait()
+
+class Temp(Scene):
+    def construct(self):
+        pass
